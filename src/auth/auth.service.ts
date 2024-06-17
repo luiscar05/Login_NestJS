@@ -1,14 +1,14 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
+import { Injectable, HttpException, HttpStatus,Response } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { promises } from 'dns';
+import * as bcrypt from 'bcrypt';
+
 @Injectable()
 export class AuthService {
 
     constructor(
         private readonly Prisma:PrismaService,
-        private jwtService:JwtService 
+        private readonly jwtService:JwtService 
     ){}
 
     async crytoPassword(password: string): Promise<string> {
@@ -19,7 +19,7 @@ export class AuthService {
         
         return hash;
     }
-    async loginUse(cedula: number, contraseña: string) {
+    async loginUse(cedula: number, contraseña: string, @Response() res) {
         console.log(`cedula: ${cedula}  contraseña: ${contraseña}`);
     
         const [User] = await this.Prisma.user.findMany({
@@ -40,6 +40,12 @@ export class AuthService {
 
             const payLoad = { id: User.id, nombre: User.nombre, Identificacion: User.cedula, rol: User.rol };
             let token = this.jwtService.sign(payLoad);
+
+            res.cookie('access_token', token, {
+                httpOnly: true, // Hace que la cookie no sea accesible desde JavaScript en el navegador
+                secure: process.env.NODE_ENV === 'production', // Solo envía la cookie a través de HTTPS en producción
+                maxAge: 3600000 // 1 hora de expiración
+              });
             
             /* const createTokenUser = {
                 UserId: User.id,
@@ -50,7 +56,8 @@ export class AuthService {
                 data: createTokenUser
             }); */
 
-            return { ...User, access_token: token };
+            
+            return res.send({ ...User, access_token: token });
 
 
             /* const createTokenUser = {
