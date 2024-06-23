@@ -20,87 +20,48 @@ export class AuthService {
         return hash;
     }
     async loginUse(cedula: number, contraseña: string, @Response() res) {
-        console.log(`cedula: ${cedula}  contraseña: ${contraseña}`);
+        try {
+          console.log(`cedula: ${cedula}  contraseña: ${contraseña}`);
     
-        const [User] = await this.Prisma.user.findMany({
+          // Validate input
+          if (!cedula || !contraseña) {
+            throw new HttpException('Cédula y contraseña son requeridos', HttpStatus.BAD_REQUEST);
+          }
+    
+          // Find user
+          const [User] = await this.Prisma.user.findMany({
             where: {
-                cedula
+              cedula
             }
-        });
+          });
     
-        if (!User) {
+          if (!User) {
             throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
           }
-      
     
+          // Validate password
           const isPasswordValid = await bcrypt.compare(contraseña, User.contrasena);
           if (!isPasswordValid) {
             throw new HttpException('Contraseña incorrecta', HttpStatus.UNAUTHORIZED);
           }
-
-            const payLoad = { id: User.id, nombre: User.nombre, Identificacion: User.cedula, rol: User.rol };
-            let token = this.jwtService.sign(payLoad);
-
-            res.cookie('access_token', token, {
-                httpOnly: true, // Hace que la cookie no sea accesible desde JavaScript en el navegador
-                secure: process.env.NODE_ENV === 'production', // Solo envía la cookie a través de HTTPS en producción
-                maxAge: 3600000 // 1 hora de expiración
-              });
-            
-            /* const createTokenUser = {
-                UserId: User.id,
-                Token: token
-            }
-
-            await this.Prisma.token.create({
-                data: createTokenUser
-            }); */
-
-            
-            return res.send({ ...User, access_token: token });
-
-
-            /* const createTokenUser = {
-                UserId: User.id,
-                Token: token
-            };
-            console.log(createTokenUser);
     
-            await this.Prisma.token.create({
-                data: createTokenUser
-            });
+          // Create JWT payload
+          const payLoad = { id: User.id, nombre: User.nombre, Identificacion: User.cedula, rol: User.rol };
+          let token = this.jwtService.sign(payLoad, { expiresIn: '1h' });
     
-            const tokenUser = await this.Prisma.token.findMany({
-                where:{
-                    UserId : User.id
-                }
-            });
-
-                    const intervalId = setInterval(async () => {
-                let DeleteTimeToken = await this.TimeLeft(User.id, token);
-                console.log(DeleteTimeToken);
+          // Set secure cookie
+          res.cookie('access_token', token, {
+            httpOnly: true, // Prevents access via JavaScript
+            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+            maxAge: 3600000, // 1 hour
+            sameSite: 'strict' // Helps prevent CSRF
+          });
     
-                if (DeleteTimeToken == "0:0:0") {
-                    token = this.jwtService.sign(payLoad, { expiresIn: `${process.env.EXPIRES_FRESH}H` });
-                    console.log(typeof token, "tipo de dato token");
-                    console.log({ ...User, RefreshToken: token });
-    
-                    const BuscarUser = await this.Prisma.token.findMany({
-                        where: {
-                            UserId: User.id
-                        }
-                    });
-    
-                    if (BuscarUser.length > 0) {
-                        await this.RefreshToken(User.id, token);
-                        console.log("Token actualizado exitosamente");
-
-
-                        
-                        
-                    }
-                }
-            }, 1000); */
+          return res.send({ ...User, access_token: token });
+        } catch (error) {
+          console.error('Error en el login:', error);
+          throw new HttpException('Error en el servidor', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
     
     async TimeLeft (id: number, token: string){
