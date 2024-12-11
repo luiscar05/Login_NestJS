@@ -1,7 +1,8 @@
-import { Injectable, HttpException, HttpStatus,Response } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus,Response, Request, Req, Res } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import * as JWT from 'jsonwebtoken'
 
 @Injectable()
 export class AuthService {
@@ -19,16 +20,15 @@ export class AuthService {
         
         return hash;
     }
-    async loginUse(cedula: number, contraseña: string, @Response() res) {
+    async login(cedula: number, contraseña: string, @Response() res,@Request() req) {
         try {
           console.log(`cedula: ${cedula}  contraseña: ${contraseña}`);
-    
           // Validate input
           if (!cedula || !contraseña) {
             throw new HttpException('Cédula y contraseña son requeridos', HttpStatus.BAD_REQUEST);
           }
     
-          // Find user
+          // Buscar Usuario
           const [User] = await this.Prisma.user.findMany({
             where: {
               cedula
@@ -39,15 +39,27 @@ export class AuthService {
             throw new HttpException('Usuario no encontrado', HttpStatus.NOT_FOUND);
           }
     
-          // Validate password
+          // Validacion de contraseña
           const isPasswordValid = await bcrypt.compare(contraseña, User.contrasena);
           if (!isPasswordValid) {
             throw new HttpException('Contraseña incorrecta', HttpStatus.UNAUTHORIZED);
           }
     
-          // Create JWT payload
+          // Creacion JWT payload
           const payLoad = { id: User.id, nombre: User.nombre, Identificacion: User.cedula, rol: User.rol };
           let token = this.jwtService.sign(payLoad, { expiresIn: '1h' });
+          const RefreshToken = this.jwtService.sign(payLoad,{ expiresIn: '24h' })
+
+          /* const Decoded = JWT.verify(token,process.env.USER_SECRET)
+          console.log(Decoded,"datos token") */
+
+           /* const newUserToken = await this.Prisma.token.create({
+            data: {
+              UserId: Number(User.id), // Convertir 'id' a 'number'
+              token:token ,
+              RefrechToken: RefreshToken,
+            } 
+        }) */
     
           // Set secure cookie
           res.cookie('access_token', token, {
@@ -56,15 +68,21 @@ export class AuthService {
             maxAge: 3600000, // 1 hour
             sameSite: 'strict' // Helps prevent CSRF
           });
-    
-          return res.send({ ...User, access_token: token });
+          res.cookie('access_token_Refrech', RefreshToken, {
+            httpOnly: true, // Prevents access via JavaScript
+            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+            maxAge: 86400000, // 24 hour
+            sameSite: 'strict' // Helps prevent CSRF
+          });
+
+          return res.send({ ...User, access_token: token , access_token_Refrech: RefreshToken});
         } catch (error) {
           console.error('Error en el login:', error);
           throw new HttpException('Error en el servidor', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     
-    async TimeLeft (id: number, token: string){
+   /*  async TimeLeft (id: number, token: string){
         const userToken = await this.Prisma.token.findMany({
             where:{
                 UserId:id
@@ -86,8 +104,18 @@ export class AuthService {
         }
         
         
-    } 
-    async RefreshToken(id: number, RefreshTokenUser: string) {
+    }  */
+    async UserLogin(Token:string){
+      
+      if (Token) {
+        const InfoUserLogin= this.jwtService.decode(Token)
+        return InfoUserLogin
+      } else {
+        console.log("token Invalido")
+      }
+      
+    }
+    /* async RefreshToken(id: number, RefreshTokenUser: string) {
         try {
 
             console.log("Inicia Actualizacion")
@@ -109,14 +137,5 @@ export class AuthService {
             // Manejar y mostrar cualquier error que ocurra
             console.error("Error al actualizar el token:", error);
         }
-    }
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    } */    
 }

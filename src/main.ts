@@ -8,14 +8,15 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const frontendOrigin = configService.get<string>('FRONTEND_ORIGIN') || 'http://localhost:5173';
-
+  
+  
+  app.use(cookieParser())
   app.enableCors({
       origin: frontendOrigin,
       credentials: true,
   });
  
   app.useGlobalPipes(new ValidationPipe())
-  app.use(cookieParser())
   await app.listen(3000);
 
 

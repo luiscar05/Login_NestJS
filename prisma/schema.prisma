@@ -14,17 +14,21 @@ datasource db {
 }
 
 model User {
-  id        Int      @default(autoincrement()) @id
-  nombre String 
-  cedula Int?
-  contrasena String? @unique()
-  rol String @default("User")
-  token Token?
+  id         Int     @id @default(autoincrement())
+  nombre     String
+  cedula     Int?    @unique
+  contrasena String? @unique
+  rol        String  @default("User")
+  token      Token[] @relation()
 }
-model Token{
-  id Int  @default(autoincrement()) @id
-  user User @relation(fields: [UserId],references: [id])
-  UserId Int @unique
-  Token  String @db.VarChar(1000)
 
+model Token {
+  id     Int    @id @default(autoincrement())
+  UserId Int    @unique
+  token  String @db.VarChar(1000)
+  RefrechToken  String @db.VarChar(1000)
+  user   User @relation(fields: [UserId],references: [id])
 }
+
+
+
