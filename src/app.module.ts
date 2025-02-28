@@ -7,6 +7,10 @@ import { AuthService } from './auth/auth.service';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { TokensModule } from './tokens/tokens.module';
+import { GruposModule } from './grupos/grupos.module';
+import { ProductosModule } from './productos/productos.module';
+
 
 
 
@@ -20,7 +24,11 @@ import { JwtService } from '@nestjs/jwt';
       isGlobal:true
     }),
     AuthModule,
-    AppModule
+    AppModule,
+    TokensModule,
+    GruposModule,
+    ProductosModule,
+    
   ],
   controllers: [],
   providers: [UsersService, PrismaService, AuthService,JwtService],

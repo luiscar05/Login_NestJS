@@ -16,19 +16,80 @@ datasource db {
 model User {
   id         Int     @id @default(autoincrement())
   nombre     String
-  cedula     Int?    @unique
-  contrasena String? @unique
+  cedula     Int   @unique
+  contrasena String @unique
   rol        String  @default("User")
-  token      Token[] @relation()
+  tokens      Token[] 
+  grupos Grupo[]
 }
 
 model Token {
   id     Int    @id @default(autoincrement())
-  UserId Int    @unique
-  token  String @db.VarChar(1000)
-  RefrechToken  String @db.VarChar(1000)
+  UserId Int    
+  SesionInicio DateTime @default(now())
   user   User @relation(fields: [UserId],references: [id])
 }
+model Grupo {
+  id_Grupo Int @id @default(autoincrement())
+  nombre String
+  descripcion String
+  ventas Ventas[]
+  deudas Deudas[]
+  id_usuario Int
+  usuario User @relation(fields: [id_usuario], references: [id])
+}
+model Productos {
+  id_Producto Int @id @default(autoincrement())
+  nombre String 
+  descripcion String?
+  precio Float 
+  stock Int 
+  Detalle_venta Detalle_Venta[]
+}
+model Ventas {
+  id_ventas Int @id @default(autoincrement())
+  id_grupo Int
+  fecha_venta DateTime @default(now())
+  total Float
+  estado String @default("Pendiente")
+  grupo Grupo @relation(fields: [id_grupo],references: [id_Grupo])
+  detalle_venta Detalle_Venta[]
+  deuda Deudas[]
+}
+
+model Detalle_Venta {
+  id_detalle Int @id @default(autoincrement())
+  id_venta Int
+  id_producto Int
+  cantidad Int
+  subtotal Float
+  venta Ventas @relation(fields: [id_venta],references: [id_ventas])
+  producto Productos @relation(fields: [id_producto],references: [id_Producto]) 
+}
+
+model Deudas{
+  id_deuda Int @id @default(autoincrement())
+  id_cliente Int
+  Ventas_id Int 
+  monto_total Float
+  monto_pendiente Float
+  fecha_deuda DateTime @default(now())
+  venta Ventas @relation(fields: [Ventas_id], references: [id_ventas])
+  grupo Grupo @relation(fields: [id_cliente],references: [id_Grupo])
+  pagos pago[]
+} 
+
+model pago {
+  id_pago Int @id @default(autoincrement())
+  Deuda_id Int
+  monto_pagado Float
+  fecha_pago DateTime @default(now())
+  deuda Deudas @relation(fields: [Deuda_id], references: [id_deuda])
+}
+
+
+
+
 
 
 

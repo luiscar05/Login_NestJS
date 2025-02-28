@@ -1,8 +1,13 @@
-import { Injectable, HttpException, HttpStatus,Response, Request, Req, Res } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus,Response, Request,Req,Res } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as JWT from 'jsonwebtoken'
+import { Console } from 'console';
+import { User } from '@prisma/client';
+import path from 'path';
+import { Token } from 'src/tokens/entities/token.entity';
+import { request } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -50,61 +55,47 @@ export class AuthService {
           let token = this.jwtService.sign(payLoad, { expiresIn: '1h' });
           const RefreshToken = this.jwtService.sign(payLoad,{ expiresIn: '24h' })
 
-          /* const Decoded = JWT.verify(token,process.env.USER_SECRET)
-          console.log(Decoded,"datos token") */
-
-           /* const newUserToken = await this.Prisma.token.create({
-            data: {
-              UserId: Number(User.id), // Convertir 'id' a 'number'
-              token:token ,
-              RefrechToken: RefreshToken,
-            } 
-        }) */
-    
+          
+            this.SesionCreate(User.id) 
           // Set secure cookie
           res.cookie('access_token', token, {
             httpOnly: true, // Prevents access via JavaScript
-            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-            maxAge: 3600000, // 1 hour
-            sameSite: 'strict' // Helps prevent CSRF
+            secure: false,
+            /* secure: process.env.NODE_ENV === 'production', // HTTPS only in production */
+            maxAge: 86400000, // 24 hour
+            sameSite: 'lax' , // Helps prevent CSRF  strict en produccion*/
+            path : '/'
           });
+
           res.cookie('access_token_Refrech', RefreshToken, {
             httpOnly: true, // Prevents access via JavaScript
             secure: process.env.NODE_ENV === 'production', // HTTPS only in production
             maxAge: 86400000, // 24 hour
-            sameSite: 'strict' // Helps prevent CSRF
+           sameSite: process.env.NODE_ENV === 'production'? 'strict' : 'lax', // Helps prevent CSRF */
+           path: '/'
           });
 
+          
           return res.send({ ...User, access_token: token , access_token_Refrech: RefreshToken});
         } catch (error) {
           console.error('Error en el login:', error);
           throw new HttpException('Error en el servidor', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    
-   /*  async TimeLeft (id: number, token: string){
-        const userToken = await this.Prisma.token.findMany({
-            where:{
-                UserId:id
-            }
-        })
-        if (userToken) {
-            const timeDelet= this.jwtService.decode(token)
-            const deleteToken= new Date(timeDelet.exp * 1000)
-            const DateNow = new Date()
-
-            const time= DateNow.getTime() - deleteToken.getTime()
-            let hours = Math.floor(time/ (1000 * 60 * 60))
-            let minutes = Math.floor((time % (1000 * 60 * 60)) / (1000 * 60));
-            let seconds = Math.floor((time % (1000 * 60)) / 1000);
-
-            return `${hours}:${minutes}:${seconds}`    
-        }else{
-            return new HttpException("Lo siento Puedes Inciar Sesión",401)
-        }
+    async  SesionCreate(userId:number ){
+      try {
+        return await this.Prisma.token.create({
+          data:{
+            UserId:userId
+          }
+        }) 
         
+      } catch (error) {
+        console.log(error,"error al guardar sesion")
         
-    }  */
+      }
+    } 
+
     async UserLogin(Token:string){
       
       if (Token) {
@@ -114,28 +105,35 @@ export class AuthService {
         console.log("token Invalido")
       }
       
-    }
-    /* async RefreshToken(id: number, RefreshTokenUser: string) {
-        try {
+    } 
 
-            console.log("Inicia Actualizacion")
-            // Actualizar el token en la base de datos
-            const newToken = await this.Prisma.token.update({
-                where: {
-                    UserId: id
-                },
-                data: {
-                    Token: RefreshTokenUser
-                }
-            });
-    
-            // Imprimir el resultado de la actualización y un mensaje de éxito
+    async logout (userId:number){
+
+      // eliminar usuario de la sesion
+      try {
+       const IdToken= await this.Prisma.token.findFirst({
+          where:{
+            UserId:userId
+          },
+          select: { // Selecciona solo lo que necesitas (mejora el rendimiento)
+            id: true // O cualquier otro campo mínimo
+          }
+        })
+        console.log(IdToken.id,"token fin sesion")
+        if (IdToken.id) {
+          await this.Prisma.token.deleteMany({
+            where:{
+              id:IdToken.id
+            }
+          }) 
+          
             
-            // Devolver el nuevo token actualizado (opcional)
-            return await this.Prisma.token.findMany() + "nuevo token";
-        } catch (error) {
-            // Manejar y mostrar cualquier error que ocurra
-            console.error("Error al actualizar el token:", error);
-        }
-    } */    
-}
+        }else{
+          return{message : "No Hay Sesion Iniciada"}
+        } 
+
+      } catch (error) {
+        console.log(error,"error al eliminar sesion")
+      }
+    }
+  }

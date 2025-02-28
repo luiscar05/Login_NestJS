@@ -1,46 +1,48 @@
-import { CanActivate, ExecutionContext, Injectable , UnauthorizedException} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { Request } from "express";
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException,Req } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { Console } from 'console';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+    constructor(private readonly jwtService: JwtService) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    // El objeto context proporciona información
-    // sobre la solicitud entrante y el entorno de ejecución.
-    const request = context.switchToHttp().getRequest();
-    const token = this.extractTokenFromHeader(request)
-    
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        const request = context.switchToHttp().getRequest<Request>();
+        const token = this.extractTokenFromCookie(request); // Extrae el token de la cookie
+        
+        if (!token) {
+            throw new UnauthorizedException('No se proporcionó token.');
+        }
 
-    if (!token) {
-      throw new UnauthorizedException();
+        try {
+            const payload = await this.jwtService.verifyAsync(token, {
+                secret: process.env.USER_SECRET, // Usa variable de entorno y valor por defecto
+            });
+            request['user'] = payload; // Asigna el payload al request
+
+            return true;
+        } catch (error) {
+            if (error.name === 'TokenExpiredError') {
+                throw new UnauthorizedException('Token expirado.');
+              } else if (error.name === 'JsonWebTokenError') {
+                throw new UnauthorizedException('Token inválido.');
+              } else if (error instanceof TypeError && error.message?.includes('access_token')) {
+                // Error relacionado con la cookie (opcional)
+                throw new UnauthorizedException('Cookie "access_token" no encontrada.');
+              } else {
+                throw new UnauthorizedException('Error al validar el token.');
+              }
+        }
+
+        
     }
 
-    try{
-      const payload = await this.jwtService.verifyAsync(token,{
-        secret: process.env.USER_SECRET
-      })
-      request.user = payload
+    private extractTokenFromCookie(@Req() request: Request): string | undefined {
 
-    }catch (error){
-      throw new UnauthorizedException();
+        const CookieVaalue = request.cookies['access_token']
+        console.log(CookieVaalue,"cookieGuard")
+        return request.cookies?.access_token; // Obtiene el valor de la cookie 'access_token'
+        
     }
-    
-
-    // Aquí puedes implementar tu lógica de autenticación o autorización.
-    // Por ejemplo, verificar si el usuario está autenticado, si tiene los roles adecuados, etc.
-
-    // Si la validación es exitosa, devuelve true, permitiendo el acceso.
-    // Si la validación falla, devuelve false, denegando el acceso.
-
-    return true; // o false, dependiendo de la lógica de tu guard.
-  }
-
-  private extractTokenFromHeader(request: Request) {
-    const [type, token] = request.headers.authorization?.split(" ") ?? [];
-    /* console.log(token, "este es el token ") */
-    return type
-    /* return type === "Bearer" ? token : undefined; */
-  }
 }

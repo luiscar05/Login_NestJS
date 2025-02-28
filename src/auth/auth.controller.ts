@@ -1,8 +1,9 @@
-import { Controller, Get, Post,Body,Res,Req, } from '@nestjs/common';
+import { Controller, Get, Post,Body,Res,Req,UseGuards, Param} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { loginDto } from 'src/auth/dto/login.dto';
-import { Request } from 'express';
-
+import { request, Request, Response } from 'express';
+import { get } from 'http';
+import { AuthGuard } from './guards/auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -19,5 +20,14 @@ export class AuthController {
     return this.authServe.UserLogin(cookie)// Verifica la cookie y devuelve respuesta
     }
 
+    @Get(':Id')
+    @UseGuards(AuthGuard)
+    async logout  (@Req() req: Request,@Res() res:Response,@Param('Id') Id:number){
+        req.cookies['access_token'] ;
+        res.clearCookie('access_token');
+        res.clearCookie('access_token_Refrech');
+        res.send('Cookie eliminada')
+       return this.authServe.logout(+Id)
+    }
 
 }
