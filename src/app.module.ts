@@ -10,6 +10,8 @@ import { JwtService } from '@nestjs/jwt';
 import { TokensModule } from './tokens/tokens.module';
 import { GruposModule } from './grupos/grupos.module';
 import { ProductosModule } from './productos/productos.module';
+import { VentasModule } from './ventas/ventas.module';
+import { DetalleVentasModule } from './detalle-ventas/detalle-ventas.module';
 
 
 
@@ -28,6 +30,8 @@ import { ProductosModule } from './productos/productos.module';
     TokensModule,
     GruposModule,
     ProductosModule,
+    VentasModule,
+    DetalleVentasModule,
     
   ],
   controllers: [],
